@@ -1,0 +1,80 @@
+// Client.cpp : This file contains the 'main' function. Program execution begins and ends there.
+#include <iostream>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <tchar.h>
+#include <string>
+
+
+using namespace std;
+#pragma comment(lib,"ws2_32.lib")
+
+bool Initialize() {
+	WSADATA data;
+	return WSAStartup(MAKEWORD(2, 2), &data) == 0;
+}
+
+int main()
+{
+	if (!Initialize()) {
+		cout << "System Connection failed" << endl;
+	}
+
+	SOCKET clientsocket = socket(AF_INET, SOCK_STREAM, 0);
+	if (clientsocket == INVALID_SOCKET) {
+		cout << "invalid socket" << endl;
+		return 1;
+	}
+
+
+	int port = 12345;
+	string serveraddress = "127.0.0.1";
+	sockaddr_in serveraddr;
+	serveraddr.sin_family = AF_INET;
+	serveraddr.sin_port = htons(port);
+
+	if (inet_pton(AF_INET, serveraddress.c_str(), &serveraddr.sin_addr) != 1) {
+		cout << "inet_pton failed. Error: " << WSAGetLastError() << endl;
+		closesocket(clientsocket);
+		WSACleanup();
+		return 1;
+	}
+
+	if(connect(clientsocket, reinterpret_cast<sockaddr*>(&serveraddr), sizeof(serveraddr)) == SOCKET_ERROR){
+		cout << "not able to connect to server" << endl;
+		closesocket(clientsocket);
+		WSACleanup();
+		return 1;
+    }
+
+	cout << "Client program started" << endl;
+
+	char buffer[4096];
+	string input;
+
+	while (true) {
+		// Send message
+		cout << "You: ";
+		getline(cin, input);
+		send(clientsocket, input.c_str(), input.length(), 0);
+
+		if (input == "exit") break;
+
+		// Receive response
+		int bytesreceived = recv(clientsocket, buffer, sizeof(buffer) - 1, 0);
+		if (bytesreceived <= 0) {
+			cout << "Server disconnected." << endl;
+			break;
+		}
+		buffer[bytesreceived] = '\0';
+		cout << "Server: " << buffer << endl;
+
+		if (strcmp(buffer, "exit") == 0) break;
+	}
+
+
+	closesocket(clientsocket);
+
+	WSACleanup();
+	return 0;
+}

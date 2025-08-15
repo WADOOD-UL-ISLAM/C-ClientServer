@@ -1,0 +1,103 @@
+
+#include <iostream>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <tchar.h>
+#include <string>
+
+
+using namespace std;
+#pragma comment(lib,"ws2_32.lib")
+SOCKET listensocket;
+bool Initialize() {
+	WSADATA data;
+	return WSAStartup(MAKEWORD(2, 2), &data) == 0;
+}
+
+void InteractWithClient(SOCKET clientsocket) {
+	char buffer[4096];
+	string input;
+
+	while (true) {
+		// Receive message
+		int bytesreceived = recv(clientsocket, buffer, sizeof(buffer) - 1, 0);
+		if (bytesreceived <= 0) {
+			cout << "Client disconnected." << endl;
+			break;
+		}
+		buffer[bytesreceived] = '\0';
+		cout << "Client: " << buffer << endl;
+
+		if (strcmp(buffer, "exit") == 0) break;
+
+		// Send response
+		cout << "You: ";
+		getline(cin, input);
+		send(clientsocket, input.c_str(), input.length(), 0);
+
+		if (input == "exit") break;
+	}
+
+	closesocket(clientsocket);
+}
+
+
+int main()
+{
+	//server start krega
+	if (!Initialize()) {
+		cout << "System Connection failed" << endl;
+    }
+	cout << "server program started" << endl;
+
+	//server ka listen socket banaya
+	listensocket = socket(AF_INET, SOCK_STREAM, 0);
+	if (listensocket == INVALID_SOCKET) {
+		cout << "socket creation failed" << endl;
+		return 1;
+	}
+	sockaddr_in serveraddr;
+	serveraddr.sin_family = AF_INET;
+	serveraddr.sin_port = htons(12345);
+
+	//socket ko port se connect kia
+	if (InetPton(AF_INET, _T("0.0.0.0"),  &serveraddr.sin_addr) != 1) {
+		cout << "inetpton method failed";
+		closesocket(listensocket);
+		WSACleanup();
+		return 1;
+	}
+
+	//bind
+	if(bind(listensocket, reinterpret_cast<sockaddr*>(&serveraddr), sizeof(serveraddr))==1) {
+		cout << "binding true" << endl;
+		closesocket(listensocket);
+		WSACleanup();
+		return 1;
+	}
+
+	//listen
+	if(listen(listensocket, SOMAXCONN) == SOCKET_ERROR) {
+		cout << "server does not connected" << endl;
+		closesocket(listensocket);
+		WSACleanup();
+		return 1;
+	}
+	cout << "server has started listening" << endl;
+
+	SOCKET clientsocket = accept(listensocket, nullptr, nullptr);
+	if (clientsocket == INVALID_SOCKET) {
+		cout << "Invalid socket" << endl;
+		closesocket(listensocket);
+		WSACleanup();
+		return 1;
+	}
+
+	cout << "Client connected. You can now chat." << endl;
+	InteractWithClient(clientsocket);
+
+	
+	closesocket(listensocket);
+	WSACleanup();
+	return 0;
+}
