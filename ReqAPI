@@ -1,0 +1,57 @@
+using GameStoreApi.DTOs;
+
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+
+List<GameDTO> games =
+[
+    new (1, "Elden Ring", "Action RPG", 59.99m, new DateOnly(2022, 2, 25)),
+    new (2, "God of War Ragnarök", "Action Adventure", 69.99m, new DateOnly(2022, 11, 9)),
+    new (3, "Hollow Knight", "Metroidvania", 14.99m, new DateOnly(2017, 2, 24)),
+    new (4, "Cyberpunk 2077", "RPG", 49.99m, new DateOnly(2020, 12, 10)),
+    new (5, "Minecraft", "Sandbox", 26.95m, new DateOnly(2011, 11, 18))
+];
+
+const string GameEndpoint = "GetGame";
+//get 
+app.MapGet("games", () => games);
+//getAT
+app.MapGet("games/{id}", (int id) => games.Find(games => games.Id == id))
+.WithName(GameEndpoint);
+//POSt
+app.MapPost("games", (CreateGameDTO newGame) =>
+{
+    GameDTO game = new(
+        games.Count + 1,
+        newGame.Name,
+        newGame.Genre,
+        newGame.Price,
+        newGame.Release_Date
+    );
+
+    games.Add(game);
+    return Results.CreatedAtRoute(GameEndpoint, new { id = game.Id }, game);
+});
+
+app.MapPut("games/{id}", (int id, UpdateGameDTO updateGameDTO) =>
+{
+    var index = games.FindIndex(g => g.Id == id);
+
+    games[index] = new GameDTO(
+        id,
+        updateGameDTO.Name,
+        updateGameDTO.Genre,
+        updateGameDTO.Price,
+        updateGameDTO.Release_Date
+    );
+}
+);
+
+app.MapDelete("games/{id}", (int id) =>
+{
+    var game = games.Find(g => g.Id == id);
+    games.Remove(game);
+    return Results.NoContent();
+});
+
+app.Run();
